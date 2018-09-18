@@ -8,6 +8,7 @@
 #include <string.h> 
 #include "json.hpp"
 #include <fstream>
+#include <map>
 #include <sys/stat.h>
 #define PORT 9254 
 using namespace std;
@@ -39,7 +40,7 @@ int main(int argc, char const *argv[])
     serv_addr.sin_port = htons(PORT); 
 
     my_addr1.sin_family = AF_INET; 
-    my_addr1.sin_addr.s_addr = inet_addr("10.2.129.89"); 
+    my_addr1.sin_addr.s_addr = inet_addr("127.0.0.1"); 
     my_addr1.sin_port = htons(12011);
  
     if (bind(sock, (struct sockaddr*) &my_addr1, sizeof(struct sockaddr_in)) == 0) 
@@ -50,7 +51,7 @@ int main(int argc, char const *argv[])
     }
        
     // Convert IPv4 and IPv6 addresses from text to binary form 
-    if(inet_pton(AF_INET, "10.2.129.89", &serv_addr.sin_addr)<=0)  
+    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0)  
     { 
         printf("\nInvalid address/ Address not supported \n"); 
         return -1; 
@@ -64,58 +65,65 @@ int main(int argc, char const *argv[])
     
     FILE *fr;
     fr=fopen("x.mp4","r");
+    unsigned long long int file_len=GetFileLength("x.mp4");
     string s;
-    int bufferSize=1024*512;
+    int bufferSize=1024*60;
     char buff[bufferSize];
-    int r,n;
-    json j;
+    int num_chunks=file_len/bufferSize;
+    int r,n, count=0;
+    map<string, string> j;
     while(r=fread(buff, sizeof(char), bufferSize, fr)) {
-        string str=buff;
-        j["sample"]=str;
-        string json_data = j.dump();
-        char send_data[json_data.length()+1];
-        strcpy(send_data, json_data.c_str());
-        send_data[json_data.length()]=0;
-        n=write(sock, buff, r);
+        string str;
+        int chunkSize;
+        if(count==num_chunks) {
+            chunkSize=file_len-(count*bufferSize);
+        } else {
+            chunkSize=bufferSize;
+        }
+        for(int i=0;i<chunkSize;i++)
+            str.push_back(buff[i]);
+        //cout<<buff<<endl<<":::::::"<<count<<endl;
+        string chunk_id=to_string(count);
+        string chunk_size=to_string(chunkSize);
+        j.insert(pair <string, string>("chunk_id",chunk_id));
+        j.insert(pair <string, string>("chunk_size",chunk_size));
+        j.insert(pair <string, string>("action", "onBootSend"));
+        j.insert(pair <string, string>("ip", "10.1.37.60"));
+        j.insert(pair <string, string>("agent", "tracker"));
+        j.insert(pair <string, string>("zdata", str));
+        map<string, string> :: iterator itr;
+        string final_str;
+        for(itr=j.begin();itr!=j.end();itr++) {
+            string entry;
+            string sflag="!$#SRTF|-G#$!";
+            string eflag="!$#ENDF|-G#$!";
+            entry.append(sflag);
+            entry.append(itr->first);
+            entry.push_back(':');
+            int elen=entry.length();
+            string key=itr->first;
+            if(!key.compare("zdata")) {
+                for(int i=0;i<chunkSize;i++,elen++) 
+                    entry.push_back(itr->second[i]);
+            } else
+                entry.append(itr->second);
+            entry.append(eflag);
+            final_str.append(entry);
+            entry.clear();
+        }
+        char send_data[final_str.length()+1];
+        strcpy(send_data, final_str.c_str());
+        send_data[final_str.length()]=0;
+        n=write(sock, send_data, r);
+        bzero(send_data, final_str.length());
+        final_str.clear();
         bzero(buff, bufferSize);
+        j.clear();
+        count++;
     }
     int t=fclose(fr);
     close(sock);
 
-
-
-
-
-
-
-
-
-
-
-    // ifstream target("x.mp4", ifstream::in | ifstream::binary);
-    // ofstream new_torrent;
-    // new_torrent.open("t.mp4", std::ios_base::app);
-    // int bufferSize = 1024*512;
-
-    // if(!target.is_open())
-    // {
-    //     return -1;
-    // }
-    // char buffer[bufferSize];
-    // int count=0;
-    // do {
-    //     target.read(buffer, bufferSize);
-    //     new_torrent.write(buffer, bufferSize);
-    //     send(sock, buffer, strlen(buffer), 0);
-    //     cout<<buffer<<endl<<"::::::::::::::::::::::::::::::::::::::::::"<<count<<endl;
-    //     count++;
-    //     //bzero((char *)buffer, 1024*512);
-    //     memset(buffer, 0, sizeof(buffer));
-    //     sleep(2);
-    // } while(target);
-
-    close(sock);
-    
     return 0; 
     
 } 

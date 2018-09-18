@@ -58,57 +58,72 @@ int main(int argc, char const *argv[])
 
     FILE *fw;
     fw=fopen("sample.mp4", "w");
-    int bufferSize=1024*512, n;
+    int bufferSize=1024*60, n;
     char buff[bufferSize];
+    int count=0;
     while(n=read(new_socket, buff, bufferSize)) {
-        string buffstr = buff;
-        //auto j=json::parse(buffstr);
-        string new_buff=j["sample"];
-        char writebuff[new_buff.length()+1];
-        strcpy(writebuff, new_buff.c_str());
-        writebuff[new_buff.length()]=0;
-        if(n<0)
-            cout<<"read failed!"<<endl;
-        n=fwrite(writebuff, sizeof(char), n, fw);
-        if(n<0)
-            cout<<"Write Failed!"<<endl;
-        bzero(writebuff, bufferSize);
+        if(n>=0) {
+            int chunk_id, chunk_size, port;
+            string action, agent, ip;
+            for(int i=0;i<bufferSize;i++) {
+                if(buff[i]=='!' && buff[i+1]=='$' && buff[i+2]=='#' && buff[i+3]=='S' && buff[i+4]=='R' && buff[i+5]=='T' && buff[i+6]=='F' && buff[i+7]=='|' && buff[i+8]=='-' && buff[i+9]=='G' && buff[i+10]=='#' && buff[i+11]=='$' && buff[i+12]=='!' ) {
+                    i+=13;
+                    int j;
+                    string value, key;
+                    for(j=i;buff[j]!=':';j++)
+                        key.push_back(buff[j]);
+                    i=j+1;
+                    if(key.compare("zdata")) {
+                        while(true) {
+                            if(buff[i]=='!' && buff[i+1]=='$' && buff[i+2]=='#' && buff[i+3]=='E' && buff[i+4]=='N' && buff[i+5]=='D' && buff[i+6]=='F' && buff[i+7]=='|' && buff[i+8]=='-' && buff[i+9]=='G' && buff[i+10]=='#' && buff[i+11]=='$' && buff[i+12]=='!' )
+                                break;
+                            else {
+                                value.push_back(buff[i]);
+                                i++;
+                            } 
+                        }
+                        i--;
+                        if(!key.compare("chunk_size"))
+                            chunk_size=stoi(value);
+                        else if(!key.compare("chunk_id"))
+                            chunk_id=stoi(value);
+                        else if(!key.compare("ip"))
+                            ip.append(value);
+                        else if(!key.compare("action"))
+                            action.append(value);
+                        else if(!key.compare("agent"))
+                            agent.append(value);
+                        key.clear();
+                        value.clear();
+                    } else {
+                        char dump_buff[chunk_size];
+                        int x;
+                        for(x=0;x<chunk_size;x++,i++)
+                            dump_buff[x]=buff[i];
+                        cout<<dump_buff<<endl<<"::::::"<<count<<endl;
+                        n=fwrite(dump_buff, sizeof(char), chunk_size, fw);
+                        if(n<0) {
+                            cout<<"Error in writing chunks to the file.";
+                        }
+                        bzero(dump_buff, chunk_size);
+                        break;
+                    }
+                    
+                } else if(buff[i]=='!' && buff[i+1]=='$' && buff[i+2]=='#' && buff[i+3]=='E' && buff[i+4]=='N' && buff[i+5]=='D' && buff[i+6]=='F' && buff[i+7]=='|' && buff[i+8]=='-' && buff[i+9]=='G' && buff[i+10]=='#' && buff[i+11]=='$' && buff[i+12]=='!' ) {
+                    i+=12;
+                }
+            }
+            count++;
+            bzero(buff, bufferSize);
+            action.clear();
+            agent.clear();
+            ip.clear();
+        }
+
+        //n=fwrite(buff, sizeof(char), bufferSize, fw);
+        //bzero(buff, bufferSize);
     }
     int t=fclose(fw);
     close(new_socket);
-    // ofstream new_torrent;
-    // new_torrent.open("sample.mp4", std::ios_base::app);
-
-    // int cid=0;
-    // char buffer[1024*512];
-    // while(true) { 
-    
-    //     valread = read(new_socket , buffer, 1024*512);
-    //     // auto j=json::parse(buffer);
-    //     // int chunk_id=j["chunk_id"];
-    //     // unsigned long long int file_size = j["file_size"];
-    //     // if(chunk_id < (file_size/(1024*512))) {
-    //     //     new_torrent<<j["chunk_data"];
-    //     // } else if(chunk_id == (file_size/(1024*512))) {
-    //     //     int chunk_size = file_size-(chunk_id*1024*512);
-    //     //     char data[chunk_size+1];
-    //     //     string jdata = j["chunk_data"];
-    //     //     for(int i=0;i<chunk_size;i++) {
-                
-    //     //         data[i]=jdata[i];
-    //     //     }
-    //     //     data[chunk_size]=0;
-    //     //     new_torrent<<data;
-    //     //     new_torrent.close();
-    //     // }
-    //     new_torrent.write(buffer, 1024*512);
-    //     cout<<buffer<<endl<<":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"<<cid<<endl;
-    //     cid++;
-    //     memset(buffer, 0, sizeof(buffer));
-    //     //bzero((char *)buffer, 1024*512);
-    //     if(cid==15)
-    //         break;       
-    // }
-    // new_torrent.close();
     return 0; 
 } 

@@ -5,7 +5,7 @@
 #include <stdlib.h> 
 #include <arpa/inet.h> 
 #include <string.h> 
-#define PORT 9254 
+#define PORT 1254 
    
 int main(int argc, char const *argv[]) 
 { 
@@ -26,7 +26,7 @@ int main(int argc, char const *argv[])
     serv_addr.sin_port = htons(PORT); 
        
     // Convert IPv4 and IPv6 addresses from text to binary form 
-    if(inet_pton(AF_INET, "10.1.37.60", &serv_addr.sin_addr)<=0)  
+    if(inet_pton(AF_INET, "192.168.43.90", &serv_addr.sin_addr)<=0)  
     { 
         printf("\nInvalid address/ Address not supported \n"); 
         return -1; 

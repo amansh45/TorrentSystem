@@ -4,7 +4,11 @@ bool isTrackerUp=false;
 
 bool notifyTracker=false;
 
-json notification;
+bool recieveChunk=false;
+
+string buff_file="transfer.json";
+
+string tmp_rv_file="sample.json";
 
 string selfIP, trackerIP;
 int selfPORT, trackerPORT;
@@ -25,12 +29,10 @@ off_t GetFileLength(string filename) {
     return st.st_size;
 }
 
-void conTracker(string seedpath) {
+void conTracker(string action) {
     struct sockaddr_in address; 
     int sock = 0, valread; 
     struct sockaddr_in serv_addr, my_addr1; 
-    char *hello = "Hello from client"; 
-    char buffer[1024] = {0}; 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
         cout<<"Unable to create the socket!"<<endl;
         return; 
@@ -60,33 +62,54 @@ void conTracker(string seedpath) {
         cout<<"Connection with the tracker having ip: "<<trackerIP<<" port: "<<trackerPORT<<" successfull!"<<endl;
         isTrackerUp=true;
     } 
-
-    ifstream target(seedpath, ifstream::in | ifstream::binary);
-    unsigned long long int file_len = GetFileLength(seedpath);
-    int pkt_size = 1024*512;
+    FILE *fr;
+    char transfile[buff_file.length()+1];
+    strcpy(transfile, buff_file.c_str());
+    transfile[buff_file.length()]=0;
+    fr=fopen(transfile,"r");
+    unsigned long long int file_len = GetFileLength(buff_file);
+    int pkt_size = 1024*62;
     char file_buffer[pkt_size];
     int chunk_id=0;
-    if(target.is_open()) {
-        do {
-            json j;
-            target.read(file_buffer, pkt_size);
-            j["agent"]="tracker";
-            j["ip"]=selfIP;
-            j["port"]=selfPORT;
-            j["action"]="onBootSend";
-            j["chunk_data"]=file_buffer;
-            j["chunk_id"]=chunk_id;
-            j["file_size"]=file_len;
-            string strbootData=j.dump();
-            char bootData[strbootData.length()+1];
-            strcpy(bootData, strbootData.c_str());
-            bootData[strbootData.length()]=0
-            send(sock, bootData, strlen(bootData), 0);
-            chunk_id++;
-        } while(target);
+    int num_chunks=file_len/pkt_size;
+    int chunk_size, r, n;
+    while(r=fread(file_buffer, sizeof(char), pkt_size, fr)) {
+        json j;
+        j["agent"]="tracker";
+        j["ip"]=selfIP;
+        j["action"]="onBootSend";
+        j["chunk_id"]=chunk_id;
+        if(chunk_id==num_chunks)
+            chunk_size=file_len-chunk_id*pkt_size;
+        else
+            chunk_size=pkt_size;
+        j["chunk_size"]=chunk_size;
+        j["num_chunks"]=num_chunks+1;
+        string strbootData=j.dump();
+        char bootData[strbootData.length()+1];
+        strcpy(bootData, strbootData.c_str());
+        bootData[strbootData.length()]=0;
+        send(sock, bootData, strlen(bootData), 0);
+        sleep(1);
+        cout<<"Sending"<<endl<<file_buffer<<endl<<"::::::::::::::"<<endl;
+        n=write(sock, file_buffer, r);
+        chunk_id++;
+        bzero(file_buffer, pkt_size);
     }
-
-
+    if(!action.compare("onBootSend")) {
+        json jr;
+        jr["agent"]="tracker";
+        jr["ip"]=selfIP;
+        jr["action"]="onBootRequest";
+        string reqData=jr.dump();
+        char rData[reqData.length()+1];
+        strcpy(rData, reqData.c_str());
+        rData[reqData.length()]=0;
+        cout<<endl<<rData<<":::::"<<endl;
+        send(sock, rData, strlen(rData), 0);
+    }
+    
+    while(true);
     // while(true) {
     //     if(isTrackerUp && notifyTracker) {
     //         notifyTracker=false;
@@ -99,34 +122,46 @@ void conTracker(string seedpath) {
     return;
 }
 
-
-void onMessageRecieved(string message, ofstream handle) {
-    auto j=json::parse(message);
-    string action=j["action"];
-    string agent=j["agent"];
-    string tip=j["ip"];
-    int tport=j["port"];
-    if(!agent.compare("tracker")) {
-        if(!tip.compare(trackerIP) && tport==trackerPORT) {
-            if(!action.compare("onBootSend")) {
-                int chunk_id=j["chunk_id"];
-                unsigned long long int file_size = j["file_size"];
-                if(chunk_id < (file_size/(1024*512))) {
-                    handle<<j["chunk_data"];
-                } else if(chunk_id == (file_size/(1024*512))) {
-                    int chunk_size = file_size-(chunk_id*1024*512);
-                    char data[chunk_size+1];
-                    string jdata = j["chunk_data"];
-                    for(int i=0;i<chunk_size;i++) {
-                        
-                        data[i]=jdata[i];
+FILE *fw;
+void onMessageRecieved(string message) {
+    static int c_id, c_size, n_chunks;
+    if(!recieveChunk) {
+        cout<<message<<endl;
+        auto j=json::parse(message);
+        string action=j["action"];
+        string agent=j["agent"];
+        string tip=j["ip"];
+        if(!agent.compare("tracker")) {
+            if(!tip.compare(trackerIP)) {
+                if(!action.compare("onBootSend")) {
+                    c_id=j["chunk_id"];
+                    c_size = j["chunk_size"];
+                    n_chunks = j["num_chunks"];
+                    recieveChunk=true;
+                    if(fw==NULL) {
+                        char rcvfile[tmp_rv_file.length()+1];
+                        strcpy(rcvfile, tmp_rv_file.c_str());
+                        rcvfile[tmp_rv_file.length()]=0;
+                        fw=fopen(rcvfile, "w");
                     }
-                    data[chunk_size]=0
-                    handle<<data;
-                    handle.close();
+                    cout<<"About to write chunk: "<<c_id<<endl;
+                } else if(!action.compare("onBootRequest")) {
+                    cout<<"Initiating thread"<<endl;
+                    thread th1(conTracker, "onBootTransfer");
+                    th1.detach(); 
                 }
             }
         }
+    } else {
+        char dump_data[c_size];
+        for(int i=0;i<c_size;i++)
+            dump_data[i]=message[i];
+        int n=fwrite(dump_data, sizeof(char), c_size, fw);
+        recieveChunk=false;
+        if(c_id==n_chunks-1)
+            int t=fclose(fw);
+        bzero(dump_data, c_size);
+        cout<<"Chunk Written, id: "<<c_id<<endl;
     }
 }
 
@@ -135,11 +170,8 @@ void listen_for_clients() {
     int master_socket, addrlen, new_socket, client_socket[1000], max_clients=1000, activity, i, valread, sd;
     int max_sd;
     struct sockaddr_in address;
-    
-    ofstream new_torrent;
-    new_torrent.open("sample.mtorrent" | ios::out | ios::app | ios::binary)
-    
-    char buffer[1025];
+    int buffSize=1024*62;
+    char buffer[buffSize];
       
     fd_set readfds;
       
@@ -155,7 +187,7 @@ void listen_for_clients() {
     
     // int flags=fcntl(master_socket, F_GETFL);
     // fcntl(master_socket, F_SETFL, flags | O_NONBLOCK);
-    cout<<SetSocketBlockingEnabled(master_socket, true);
+    //cout<<SetSocketBlockingEnabled(master_socket, true);
 
     if( setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
         cout<<"Unable to allow master socket for multiple connections!"<<endl;
@@ -214,21 +246,22 @@ void listen_for_clients() {
                 }
             }
         }
-        
         for (i = 0; i < max_clients; i++) {
             sd = client_socket[i];
             if (FD_ISSET( sd , &readfds)) {
                 //Check if it was for closing , and also read the incoming message
-                if ((valread = read(sd, buffer, 1024)) <= 0) {
+                if ((valread = read(sd, buffer, buffSize)) <= 0) {
                     getpeername(sd , (struct sockaddr*)&address, (socklen_t*)&addrlen);
                     cout<<"Client disconnected, IP ADDRESS: "<<inet_ntoa(address.sin_addr)<<", PORT: "<<ntohs(address.sin_port)<<endl;
                     close(sd);
                     client_socket[i] = 0;
                 } else {
                     cout<<"Message Recieved!"<<endl;
+                    //cout<<buffer<<":::::"<<endl;
                     string msg_recieved=buffer;
-                    onMessageRecieved(msg_recieved, new_torrent);
-
+                    bzero(buffer, buffSize);
+                    onMessageRecieved(msg_recieved);
+                    cout<<"Returned from thread";
                     //buffer[valread] = '\0';
                     //send(sd , buffer , strlen(buffer) , 0 );
                 }

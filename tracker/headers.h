@@ -21,10 +21,9 @@ using json = nlohmann::json;
 extern bool isTrackerUp;
 extern bool notifyTracker;
 extern json notification;
-extern string selfIP, trackerIP;
+extern string selfIP, trackerIP, buff_file, tmp_rv_file;
 extern int selfPORT, trackerPORT;
-
 
 void listen_for_clients();
 
-int conTracker(string);
+void conTracker(string);

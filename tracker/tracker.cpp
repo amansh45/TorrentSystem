@@ -36,7 +36,7 @@ int main(int argc , char *argv[])
     trackerIP=stracker_ip;
     trackerPORT=stracker_port;
 
-    thread th1(conTracker, "transfer.json");
+    thread th1(conTracker, "onBootSend");
     
     thread th2(listen_for_clients);
     
