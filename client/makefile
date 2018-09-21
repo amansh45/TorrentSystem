@@ -1,9 +1,12 @@
-CC = g++
-CFLAGS = -Wall -std=c++1z
-DEPS = headers.h sha1.h
-OBJ = clients.o sha1.o headers.o
-%.o: %.cpp $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
+CC=g++
+RunClient: clients.o functions.o sha1.o
+	$(CC) clients.o functions.o sha1.o -o RunClient -pthread
 
-RunClient: $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+clients.o: clients.cpp headers.h json.hpp
+	$(CC) -std=c++11 -c clients.cpp -pthread 
+
+functions.o: functions.cpp headers.h json.hpp
+	$(CC) -std=c++11 -c functions.cpp -pthread
+
+sha1.o: sha1.cpp sha1.h
+	$(CC) -c sha1.cpp

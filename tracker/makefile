@@ -6,4 +6,4 @@ tracker.o: tracker.cpp headers.h json.hpp
 	$(CC) -std=c++11 -c tracker.cpp -pthread 
 
 functions.o: functions.cpp headers.h json.hpp
-	$(CC) -c functions.cpp
+	$(CC) -std=c++11 -c functions.cpp -pthread

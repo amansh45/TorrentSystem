@@ -1,14 +1,1 @@
-{
-	"seederlist": [{
-		"hash": "da39a3ee5e6b4b0d32552fd1dcc48cac5a40bdd3bf1d60cd828cade8ee3f1a00960557382e5de2eb346d812e0302fc205f7313163de31f50fc1ca7e54be77dd6b8d09904f773d6acb4d7be3525a6800c466497a26813d5b2d2891a64f04ae1521ea32558b8a1d31b59c7c07db644b4d96e0c4060bffb4077484f21c8a760e39777e26f25482251e5810c259dd92a84e863f63cbaabd18198ee895dcc149f0979",
-		"filename": "x.mp4",
-		"client": {
-			"ip": "10.2.129.89",
-			"port": "9254"
-		},
-		"seeders": [{
-			"ip": "10.2.129.89",
-			"port": "9254"
-		}]
-	}]
-}
+{"seederlist":[{"client":{"ip":"10.2.129.89","port":12229},"filename":"new.pdf","hash":"bb29fae78a77ec8c4182aa86118aa00dd7d6d7a9","seeders":[{"ip":"10.2.129.89","port":12229},{"ip":"192.168.41.90","port":12333}]}]}

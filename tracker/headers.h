@@ -19,11 +19,17 @@ using json = nlohmann::json;
 
 
 extern bool isTrackerUp;
-extern bool notifyTracker;
+extern bool notifyTracker, sendData;
 extern json notification;
-extern string selfIP, trackerIP, buff_file, tmp_rv_file;
-extern int selfPORT, trackerPORT;
+extern string selfIP, trackerIP, buff_file, tmp_rv_file, sharable_data, seedFilePath;
+extern int selfPORT, trackerPORT, selfSendingPort, trackerSendingPort;
+
+extern json seedlist, sharelist;
 
 void listen_for_clients();
 
 void conTracker(string);
+
+void conClient(string, int, string);
+
+bool is_file_exist(char *);

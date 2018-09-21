@@ -12,7 +12,7 @@ int main(int argc , char *argv[])
             ip=true;
         else if(ip==false)
             ftracker_ip.push_back(first_tracker[i]);
-        else if(port==false)
+        else if(port==false) 
             ftracker_port=(ftracker_port*10)+(first_tracker[i]-'0');
     }
     ip=false;
@@ -27,15 +27,29 @@ int main(int argc , char *argv[])
             stracker_port=(stracker_port*10)+(second_tracker[i]-'0');
     }
     
-    // ifstream seederlist("transfer.json");
-    // json slist;
-    // seederlist>>slist;
+    seedFilePath = "seederlist.json";
 
+    ifstream seederlist(seedFilePath);
+    seederlist>>seedlist;
+    seederlist.close();
+
+    char transfile[buff_file.length()+1];
+    strcpy(transfile, buff_file.c_str());
+    transfile[buff_file.length()]=0;
+
+    if(is_file_exist(transfile)) {
+        ifstream transseederlist(buff_file);
+        transseederlist>>sharelist;
+        transseederlist.close();    
+    }
+    
     selfIP=ftracker_ip;
     selfPORT=ftracker_port;
     trackerIP=stracker_ip;
     trackerPORT=stracker_port;
-
+    selfSendingPort=selfPORT+33;
+    trackerSendingPort=trackerPORT+33;
+    
     thread th1(conTracker, "onBootSend");
     
     thread th2(listen_for_clients);
