@@ -1,5 +1,5 @@
 CC=g++
-RunTracker: tracker.o functions.o
+Tracker: tracker.o functions.o
 	$(CC) tracker.o functions.o -o RunTracker -pthread
 
 tracker.o: tracker.cpp headers.h json.hpp

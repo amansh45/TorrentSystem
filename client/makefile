@@ -1,5 +1,5 @@
 CC=g++
-RunClient: clients.o functions.o sha1.o
+Client: clients.o functions.o sha1.o
 	$(CC) clients.o functions.o sha1.o -o RunClient -pthread
 
 clients.o: clients.cpp headers.h json.hpp

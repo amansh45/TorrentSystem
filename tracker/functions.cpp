@@ -130,10 +130,10 @@ void conTracker(string action) {
             bzero(file_buffer, pkt_size);
             bzero(bootData, strbootData.length()+1);
         }
-        if( remove(transfile) != 0 )
-            cout<<"Error in removing the File: "<<transfile<<endl;
-        else
-            cout<<"File: "<<transfile<<" removed successfully!"<<endl;    
+        // if( remove(transfile) != 0 )
+        //     cout<<"Error in removing the File: "<<transfile<<endl;
+        // else
+        //     cout<<"File: "<<transfile<<" removed successfully!"<<endl;    
     }
     
     if(!action.compare("onBootSend")) {
@@ -213,17 +213,7 @@ void conClient(string Ip, int Port, string message) {
     char self_ip_addr[selfIP.length()+1];
     strcpy(self_ip_addr, selfIP.c_str());
     self_ip_addr[selfIP.length()]=0;
-
-    my_addr1.sin_family = AF_INET; 
-    my_addr1.sin_addr.s_addr = inet_addr(self_ip_addr); 
- 
-    if (bind(sock, (struct sockaddr*) &my_addr1, sizeof(struct sockaddr_in)) == 0) 
-        cout<<"Ip addr binded successfully!"<<endl; 
-    else {
-        cout<<"Unable to bind with Ip for sending data to the client!"<<endl;
-        return;
-    }
-       
+  
     char client_ip_addr[Ip.length()+1];
     strcpy(client_ip_addr, Ip.c_str());
     client_ip_addr[Ip.length()]=0;
@@ -243,7 +233,7 @@ void conClient(string Ip, int Port, string message) {
     strcpy(tobeShared, message.c_str());
     tobeShared[message.length()]=0;
     send(sock, tobeShared, strlen(tobeShared), 0);
-
+    close(sock);
 }
 
 void shallWrite(json data) {
@@ -299,7 +289,6 @@ void shallRemove(string hash) {
     }
     if(hash_found) {
         seedlist["seederlist"].erase(it);
-        cout<<seedlist;
         string dump_data=seedlist.dump();
         ofstream seeding_file(seedFilePath);
         seeding_file<<dump_data;
@@ -308,42 +297,30 @@ void shallRemove(string hash) {
 }
 
 void shallRemoveForTransfer(json hash) {
-    cout<<"10"<<endl;
     json::iterator itr;
-    cout<<"9"<<endl;
     bool flag=false, remove_flag=false;
-    cout<<"8"<<endl;
     for(itr=sharelist["share_data"].begin();itr!=sharelist["share_data"].end();++itr) {
         json jtarget=*itr;
         string target=jtarget.dump();
-        cout<<"7"<<endl;
         if(!target.compare(hash.dump())) {
             flag=true;
             return;
         } else {
             target.clear();
-            cout<<"6"<<endl;
             target=jtarget["data"]["hash"];
-            cout<<"5"<<endl;
             string dtype=jtarget["data_type"];
-            cout<<"99"<<endl;
             string comingHash=hash["data"]["hash"];
-            cout<<comingHash<<":::"<<target<<endl;
             if(!target.compare(comingHash) && !dtype.compare("share")) {
-                cout<<"4"<<endl;
                 remove_flag=true;
                 break;
             }
         }
     }
     if(remove_flag) {
-        cout<<"3"<<endl;
         sharelist["share_data"].erase(itr);
     }
     if(!flag) {
-        cout<<"2"<<endl;
         sharelist["share_data"].push_back(hash);
-        cout<<"1"<<endl;
         string dump_data=sharelist.dump();
         ofstream seeding_file(buff_file);
         seeding_file<<dump_data;
@@ -446,8 +423,9 @@ void shallAddSeed(json data) {
         if(!stored_hash.compare(data["hash"])) {
             hash_found=true;
             for(json::iterator itt=data["seeders"].begin(); itt!=data["seeders"].end(); ++itt) {
-                string s_ip=data["seeders"]["ip"];
-                int s_port=data["seeders"]["port"];
+                json seed=*itt;
+                string s_ip=seed["ip"];
+                int s_port=seed["port"];
                 json::iterator itr;
                 seed_found=false;
                 for(itr=entry["seeders"].begin(); itr!=entry["seeders"].end(); ++itr) {
@@ -489,7 +467,7 @@ void process_file() {
         json element = *itr;
         string dtype=element["data_type"];
         if(!dtype.compare("share")) {
-            shallWrite(element["data"]);
+            shallAddSeed(element["data"]);
         } else if(!dtype.compare("remove")) {
             shallRemove(element["data"]["hash"]);
         }
@@ -559,7 +537,6 @@ void onMessageRecieved(string message) {
             } else if(!action.compare("get")) {
                 string hash_o_hash=j["hash_o_hash"];
                 string seedList=retrieve_seeds(hash_o_hash);
-                cout<<seedList<<endl;
                 conClient(tip, tport, seedList);
             } else if(!action.compare("remove")) {
                 json du_data;
@@ -613,7 +590,6 @@ void onMessageRecieved(string message) {
             process_file();
         }
         bzero(dump_data, c_size);
-        cout<<"Chunk Written, id: "<<c_id<<endl;
     }
 }
 
@@ -626,8 +602,6 @@ void listen_for_clients() {
     char buffer[buffSize];
       
     fd_set readfds;
-      
-    char *message = "ECHO Daemon v1.0 \r\n";
     
     for (i = 0; i < max_clients; i++) 
         client_socket[i] = 0;
