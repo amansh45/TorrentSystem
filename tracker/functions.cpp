@@ -213,17 +213,7 @@ void conClient(string Ip, int Port, string message) {
     char self_ip_addr[selfIP.length()+1];
     strcpy(self_ip_addr, selfIP.c_str());
     self_ip_addr[selfIP.length()]=0;
-
-    my_addr1.sin_family = AF_INET; 
-    my_addr1.sin_addr.s_addr = inet_addr(self_ip_addr); 
- 
-    if (bind(sock, (struct sockaddr*) &my_addr1, sizeof(struct sockaddr_in)) == 0) 
-        cout<<"Ip addr binded successfully!"<<endl; 
-    else {
-        cout<<"Unable to bind with Ip for sending data to the client!"<<endl;
-        return;
-    }
-       
+  
     char client_ip_addr[Ip.length()+1];
     strcpy(client_ip_addr, Ip.c_str());
     client_ip_addr[Ip.length()]=0;
@@ -243,7 +233,7 @@ void conClient(string Ip, int Port, string message) {
     strcpy(tobeShared, message.c_str());
     tobeShared[message.length()]=0;
     send(sock, tobeShared, strlen(tobeShared), 0);
-
+    close(sock);
 }
 
 void shallWrite(json data) {

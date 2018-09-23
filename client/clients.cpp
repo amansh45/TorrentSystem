@@ -45,9 +45,6 @@ int main(int argc , char *argv[]) {
     SELF_IP=self_ip;
     SELF_PORT=self_port;
 
-    FTRACKER_SENDING_PORT=FTRACKER_PORT+33;
-    STRACKER_SENDING_PORT=STRACKER_PORT+33;
-
     auto init = []() { 
         while(true) {
             string command;
@@ -64,10 +61,19 @@ int main(int argc , char *argv[]) {
         } 
     };
 
+    char p[availFilePath.length()+1];
+    strcpy(p, availFilePath.c_str());
+    p[availFilePath.length()]=0;
+
+    if(is_file_exist(p)) {
+        ifstream downloadedlist(availFilePath);
+        downloadedlist>>local_chunks_list;
+    }
+
     thread th1(init);
-    thread th2(listen_for_clients);
-    th2.detach();
+    thread th2(listen_for_connections);
     th1.join();
+    th2.join();
 
     return 0;
 }
